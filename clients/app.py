@@ -1,97 +1,99 @@
-import common
 import requests
+import common
+
 
 class SmartHouseApp:
-    """
-    Class representing an end-user client application that can
-    interact with the device clients via the cloud service.
-
-    The application is highly simplistic being only capable of
-    controlling a temperature sensor and a light bulb actuator
-    """
 
     def __init__(self):
         self.sensor_did = common.TEMPERATURE_SENSOR_DID
         self.actuator_did = common.LIGHT_BULB_ACTUATOR_DID
+        self.base_url = common.BASE_URL
 
+    # -------------------------
+    # ACTUATOR
+    # -------------------------
     def get_bulb_state(self) -> str:
-        """
-        This method sends a GET request to the cloud state to obtain
-        the current state of the light bulb actuator
-        """
+        url = f"{self.base_url}/smarthouse/actuator/{self.actuator_did}/state"
 
-        url = common.BASE_URL + f"actuator/{self.actuator_did}/state"
+        try:
+            response = requests.get(url)
 
-        payload = {}
-        headers = {}
+            if response.status_code == 200:
+                state = response.json().get("state")
+                return "on" if state else "off"
 
-        response = requests.request("GET", url, headers=headers, data=payload)
+        except Exception as e:
+            print(f"Error: {e}")
 
-        actuator_state = common.ActuatorState.from_json_str(response.text)
+        return "unknown"
 
-        return actuator_state.state
+    def update_bulb_state(self, new_state: str):
+        url = f"{self.base_url}/smarthouse/actuator/{self.actuator_did}/state"
 
-    def update_bulb_state(self,new_state) -> requests.Response:
-        """
-        This method sends a PUT request to the cloud state to obtain
-        the current state of the light bulb actuator
-        """
+        payload = {
+            "state": True if new_state == "on" else False
+        }
 
-        # TODO START
+        try:
+            return requests.put(url, json=payload)
 
-        pass
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
 
-        # TODO END
+    # -------------------------
+    # SENSOR
+    # -------------------------
+    def get_temperature(self):
+        url = f"{self.base_url}/smarthouse/sensor/{self.sensor_did}/current"
 
-    def get_temperature(self) -> float:
-        """
-        This method sends a GET request to the cloud state to obtain
-        the current temperature recorded for the temperature sensor
-        """
+        try:
+            response = requests.get(url)
 
-        # TODO START
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("value"), data.get("unit")
 
-        pass
+        except Exception as e:
+            print(f"Error: {e}")
 
-        # TODO END
+        return None, None
 
-    def main(self):
+    # -------------------------
+    # MENU
+    # -------------------------
+    def run(self):
 
-        is_active = True
+        while True:
+            print("\n---- SmartHouse App ----")
+            print("1. Slå av/på lys")
+            print("2. Vis temperatur")
+            print("3. Vis lys status")
+            print("4. Avslutt")
 
-        while is_active:
+            choice = input(">>> ")
 
-            print("---- SmartHouse Control App ----\nSelect option:\n1. Toggle Lightbulb \n2. Show Temperature\n3. Quit\n")
-            user_input = input(">>> ")
+            if choice == "1":
+                current = self.get_bulb_state()
+                print(f"Nåværende: {current}")
 
-            if not user_input.isdigit() and int(user_input) in {1, 2, 3}:
-                print(f"Unrecognized input: '{user_input}'")
-            else:
-                selected_option = int(user_input)
-                if selected_option == 1:
+                new_state = "off" if current == "on" else "on"
 
-                    current_state = self.get_bulb_state()
-                    print(f'Current state lightbulb: {current_state}')
+                self.update_bulb_state(new_state)
 
-                    if current_state == 'off':
-                        current_state = 'on'
-                    else:
-                        current_state = 'off'
+                print(f"Ny status: {self.get_bulb_state()}")
 
-                    self.update_bulb_state(current_state)
-                    new_state = self.get_bulb_state()
-                    print(f'New state lightbulb: {new_state}')
+            elif choice == "2":
+                value, unit = self.get_temperature()
+                print(f"Temperatur: {value} {unit}")
 
-                elif selected_option == 2:
+            elif choice == "3":
+                print(f"Lys: {self.get_bulb_state()}")
 
-                    value = self.get_temperature()
-                    print(f'Current temperature: {value}')
+            elif choice == "4":
+                print("Avslutter...")
+                break
 
-                else:
-                    is_active = False
 
-        print("App shutting down")
-
-if __name__ == '__main__':
-    app = SmartHouseApp()
-    app.main()
+if __name__ == "__main__":
+    SmartHouseApp().run()

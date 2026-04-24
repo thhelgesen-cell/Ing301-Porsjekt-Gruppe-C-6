@@ -12,6 +12,7 @@ import common
 TEMPERATURE_SENSOR_CLIENT_SLEEP_TIME = 4
 TEMP_RANGE = 40
 
+
 class SensorClient:
     """
     Sensor client representing the physical temperature sensor
@@ -23,7 +24,7 @@ class SensorClient:
 
     def do_measurement(self) -> common.SensorMeasurement:
         """
-        Method simulating the reading of a temperature on the sensor
+        Simulate reading a temperature
         """
         logging.info(f"Sensor {self.did} measuring")
 
@@ -31,39 +32,52 @@ class SensorClient:
 
         logging.info(f"Sensor measured {self.did}: {temp}")
 
-        measurement =  common.SensorMeasurement(str(datetime.datetime.now().isoformat()),
-                                                str(temp),"Deg C")
+        # 🔑 value skal være float (ikke string)
+        measurement = common.SensorMeasurement(
+            datetime.datetime.now().isoformat(),
+            temp,
+            "°C"
+        )
 
         return measurement
 
-    def put_measurement(self,m: common.SensorMeasurement) -> requests.Response:
+    def put_measurement(self, m: common.SensorMeasurement) -> requests.Response:
         """
-        This method sends a PUT request to update the current temperature
-        recorded in the cloud service
+        Send measurement til API
         """
-
         logging.info(f"Sensor client {self.did} update starting")
-        response = None
 
-        # TODO
-        return response
+        url = f"{common.BASE_URL}/smarthouse/sensor/{self.did}/current"
 
+        payload = {
+            "timestamp": m.timestamp,
+            "value": float(m.value),  # sikker på riktig type
+            "unit": m.unit
+        }
+
+        try:
+            response = requests.put(url, json=payload)
+
+            logging.info(
+                f"Sensor client {self.did} response: {response.status_code}"
+            )
+
+            return response
+
+        except Exception as e:
+            logging.error(f"Sensor client error: {e}")
+            return None
 
     def run(self):
         """
-        This method runs in a loop reguarly reading the temperature
-        and sending it to the cloud service
+        Loop: measure + send
         """
-
         while True:
-
             m = self.do_measurement()
-
-            r = self.put_measurement(m)
-
+            self.put_measurement(m)
             time.sleep(TEMPERATURE_SENSOR_CLIENT_SLEEP_TIME)
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     sensor = SensorClient(common.TEMPERATURE_SENSOR_DID)
     sensor.run()
